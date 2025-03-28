@@ -1,8 +1,12 @@
 const db = require('./modules/DbHelper');
 const AccessParser = require('./modules/AccessParser');
-const fs = require('fs');
+const config = require('./config');
 
-const checkAndCreateTables = async () => {
+// # Method for checking and creating tables
+// @param {boolean} shouldDelete
+// @default false
+// @returns {Promise<void>}
+const checkAndCreateTables = async (shouldDelete = false) => {
    try {
       const tableNames = [
          'DrzavniEvidenci',
@@ -19,22 +23,27 @@ const checkAndCreateTables = async () => {
 
       for await (const table of tableNames) {
          const existsQuery = `
-        SELECT * FROM INFORMATION_SCHEMA.TABLES
-        WHERE TABLE_NAME = @table
-      `;
+            SELECT * FROM INFORMATION_SCHEMA.TABLES
+            WHERE TABLE_NAME = @table
+         `;
          const exists = await db.query(existsQuery, { table });
 
-         if (exists.length === 0) {
-            console.log(`⚠️ Table ${table} does not exist. Creating...`);
+         if (exists.length > 0 && shouldDelete) {
+            console.log(`🗑️ Dropping existing table: ${table}...`);
+            await db.query(`DROP TABLE ${table}`);
+         }
+
+         if (exists.length === 0 || shouldDelete) {
+            console.log(`⚠️ Table ${table} does not exist or was dropped. Creating...`);
 
             let columns = `
-          ID INT PRIMARY KEY,
-          EMBS NVARCHAR(250),
-          Godina INT,
-          Tip NVARCHAR(10),
-        `;
+               ID INT IDENTITY(1,1) PRIMARY KEY,
+               EMBS NVARCHAR(250),
+               Godina INT,
+               Tip NVARCHAR(10),
+               ${table.includes('Temp') ? 'DocTypeID NVARCHAR(10),' : ''}
+            `;
 
-            // AOP601 to AOP724
             for (let i = 601; i <= 724; i++) {
                columns += `AOP${i} FLOAT NULL,\n`;
             }
@@ -46,17 +55,33 @@ const checkAndCreateTables = async () => {
             columns += `Created_At DATETIME DEFAULT GETDATE()`;
 
             const createQuery = `
-              CREATE TABLE ${table} (
-              ${columns}
-              )
-          `;
+               CREATE TABLE ${table} (
+               ${columns}
+               )
+            `;
 
             await db.query(createQuery);
             console.log(`✅ Table ${table} created.`);
+
+            // 📌 Create indexes after table creation
+            let indexCols = ['EMBS', 'Tip', 'Godina'];
+            if (table.includes('510')) {
+               indexCols.push('Smetka');
+            }
+
+            const indexName = `idx_${table}_mergekeys`;
+            const indexQuery = `
+               CREATE NONCLUSTERED INDEX ${indexName}
+               ON ${table} (${indexCols.join(', ')})
+            `;
+
+            await db.query(indexQuery);
+            console.log(`📈 Index ${indexName} created on ${table} (${indexCols.join(', ')})`);
          } else {
             console.log(`✅ Table ${table} already exists.`);
          }
       }
+
       console.log('✔️ Done checking/creating all tables.');
    } catch (err) {
       throw new Error(err);
@@ -65,15 +90,24 @@ const checkAndCreateTables = async () => {
 
 (async () => {
    try {
-      await checkAndCreateTables();
+      // # Check and create tables
+
+      const cleanStart = config.cleanStart;
+
+      await checkAndCreateTables(cleanStart);
+
+      // # Get all files
       const files = AccessParser.getAccessFiles();
 
+      // # Process all files
       for await (const file of files) {
          console.log(`📂 Parsing file: ${file}`);
-         const result = await AccessParser.processFile(file);
-
-         fs.writeFileSync('test.json', JSON.stringify(result, null, 2));
+         await AccessParser.processFile(file);
       }
+
+      await AccessParser.runMergeProcedures();
+
+      console.log('✔️ Done processing all files.');
    } catch (err) {
       console.error('❌ Error:', err);
    } finally {
