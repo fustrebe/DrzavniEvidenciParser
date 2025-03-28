@@ -33,9 +33,9 @@ A Node.js application that automates the extraction, transformation, and loading
 ## 📦 Project Structure
 
 ```
-/config/           → config.js (application setup)
+/access/
+/config.js         → config.js (application setup)
 /modules/          → AccessParser.js, DbHelper.js
-/sp/               → Stored procedures
 /index.js          → Main entry point
 .env               → Environment variables for MSSQL
 ```
