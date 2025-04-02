@@ -135,5 +135,3 @@ Set these environment variables:
 -  Everything is designed to scale with large data inputs (~100k rows+ per file).
 
 ---
-
-© Nix Internal Tooling – For structured financial data parsing.
