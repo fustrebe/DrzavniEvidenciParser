@@ -26,5 +26,12 @@ module.exports = {
     * before recreating them. This gives you a clean start.
     * Use with caution — existing data will be lost!
     */
-   cleanStart: false
+   drzavniEvidenciCleanStart: true,
+   /**
+    * ⚠️⚠️⚠️ DANGER ZONE ⚠️⚠️⚠️
+    * If true, deletes ALL `StrukturiNaPrihodi*` tables (Temp and Original)
+    * before recreating them. This gives you a clean start.
+    * Use with caution — existing data will be lost!
+    */
+   strukturiNaPrihodiCleanStart: true
 };

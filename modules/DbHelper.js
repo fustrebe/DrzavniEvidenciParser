@@ -63,7 +63,10 @@ class DbHelper {
    // @param {string} tableName
    // @param {Array} rows
    // @param {boolean} includeSmetka
-   async insertToTable(tableName, rows, includeSmetka = false) {
+   // @param {number} aopStart
+   // @param {number} aopEnd
+   // @param {boolean} includeDocTypeID
+   async insertToTable(tableName, rows, includeSmetka = false, aopStart = 601, aopEnd = 724, includeDocTypeID = true) {
       if (!rows || rows.length === 0) return;
 
       if (!this.pool) {
@@ -76,30 +79,42 @@ class DbHelper {
       table.columns.add('EMBS', sql.NVarChar(250));
       table.columns.add('Godina', sql.Int);
       table.columns.add('Tip', sql.NVarChar(10));
-      table.columns.add('DocTypeID', sql.NVarChar(10));
 
-      for (let i = 601; i <= 724; i++) {
+      if (includeDocTypeID) {
+         table.columns.add('DocTypeID', sql.NVarChar(10));
+      }
+
+      for (let i = aopStart; i <= aopEnd; i++) {
          table.columns.add(`AOP${i}`, sql.Float);
       }
+
       if (includeSmetka) {
          table.columns.add('Smetka', sql.NVarChar(10));
       }
+
       table.columns.add('Created_At', sql.DateTime);
 
       for (const row of rows) {
-         const values = [
-            String(row.EMBS),
-            row.Godina ? parseInt(row.Godina) : null,
-            String(row.Tip),
-            String(row.DocTypeID),
-            ...Array.from({ length: 124 }, (_, i) => row[`AOP${601 + i}`])
-         ];
-         if (includeSmetka) values.push(String(row.Smetka));
+         const values = [String(row.EMBS), row.Godina ? parseInt(row.Godina) : null, String(row.Tip)];
+
+         if (includeDocTypeID) {
+            values.push(String(row.DocTypeID));
+         }
+
+         for (let i = aopStart; i <= aopEnd; i++) {
+            values.push(row[`AOP${i}`]);
+         }
+
+         if (includeSmetka) {
+            values.push(String(row.Smetka));
+         }
+
          values.push(new Date());
          table.rows.add(...values);
       }
 
       await this.pool.request().bulk(table);
+      console.log(`✅ Bulk inserted ${rows.length} rows into ${tableName}`);
    }
 }
 
