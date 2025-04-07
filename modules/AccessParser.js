@@ -270,7 +270,7 @@ class AccessParser {
                   columns += `AOP${i} FLOAT NULL,\n`;
                }
 
-               if (table.includes('510')) {
+               if (table.includes('510') || table.includes('520')) {
                   columns += `Smetka NVARCHAR(10),\n`;
                }
 
@@ -287,7 +287,7 @@ class AccessParser {
 
                // 🔍 Create index
                let indexCols = ['EMBS', 'Tip', 'Godina'];
-               if (table.includes('510')) {
+               if (table.includes('510') || table.includes('520')) {
                   indexCols.push('Smetka');
                }
 
@@ -321,7 +321,7 @@ class AccessParser {
          BEGIN
             SET NOCOUNT ON;
 
-            DECLARE @HasSmetka BIT = CASE WHEN @TargetTable = 'StrukturaNaPrihodi510' THEN 1 ELSE 0 END;
+            DECLARE @HasSmetka BIT = CASE WHEN @TargetTable IN ('StrukturaNaPrihodi510', 'StrukturaNaPrihodi520') THEN 1 ELSE 0 END;
             DECLARE @TempTable NVARCHAR(100) = @TargetTable + 'Temp';
 
             DECLARE @JoinKeys NVARCHAR(MAX) = '
@@ -633,7 +633,7 @@ class AccessParser {
                   return Object.keys(entry).some((key) => key.startsWith('AOP') && entry[key] != null);
                })
                .sort((a, b) => a.EMBS.localeCompare(b.EMBS));
-            await db.insertToTable(tableName, final, tipSubjekt === 510, 2001, 2619, true);
+            await db.insertToTable(tableName, final, [510, 520].includes(tipSubjekt), 2001, 2619, true);
 
             // 🧹 Clean up memory for next group
             filtered.length = 0;
